@@ -36,3 +36,16 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+# Logs
+*.log
+
+# Compiled Java class files
+*.class
+
+# Temporary files
+*.tmp
+*.swp
+
+# Windows system files
+Thumbs.db

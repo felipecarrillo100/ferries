@@ -108,10 +108,10 @@ This is compliant with `Catalog Explorer` Live Tracks messaging that expects:
 
 ```json
 {
-  "action":  //  Action one of ADD, PUT, DELETE, PATCH
-  "geometry":  //  A valid GeoJSON Geometry
-  "id": //  A Unique ID for the feature
-  "properties": //  Anny properties relevant to your applications
+  "action": "...",           // ADD, PUT, DELETE, PATCH
+  "geometry": {...},         // GeoJSON Point
+  "id": "...",               // Unique vehicle ID
+  "properties": {...}        // Any app-specific metadata
 }
 ```
 
