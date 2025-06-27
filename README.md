@@ -76,10 +76,13 @@ mvn exec:java -Dexec.args="tcp://localhost:1883 admin admin producers/ferries/da
 Catalog Explorer uses **STOMP** protocol and does **not** understand MQTT natively.  
 Instead, it relies on the message broker to translate between MQTT and STOMP protocols.
 
-If you are using **ActiveMQ** as your broker, simply enable both **STOMP** and **MQTT** protocols.  
-ActiveMQ will automatically and transparently translate MQTT topics to STOMP destinations.
+If you use **ActiveMQ**, you can enable both MQTT and STOMP connectors. ActiveMQ will automatically and transparently map MQTT topics to STOMP destinations.
 
-**Note:** ActiveMQ translates the MQTT topic
+#### Example Mapping:
+- MQTT topic: `producers/ferries/data` to
+- STOMP topic: `/topic/producers.ferries.data`
+
+This bridging lets MQTT publishers and STOMP consumers (like Catalog Explorer) work together seamlessly.
 
 ## 🛰️ MQTT Message Example
 
