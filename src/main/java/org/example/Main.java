@@ -4,28 +4,39 @@ import com.hivemq.client.mqtt.MqttClient;
 import com.hivemq.client.mqtt.datatypes.MqttQos;
 import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient;
 import com.hivemq.client.mqtt.mqtt3.message.connect.connack.Mqtt3ConnAck;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Command;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import static org.example.NycFerryAdvancedSimulation.*;
 
-public class Main {
+@Command(name = "NycFerryPublisher", mixinStandardHelpOptions = true, version = "1.0",
+        description = "Publishes simulated NYC ferry AIS data to an MQTT broker.")
+public class Main implements Runnable {
 
-    private static final String DEFAULT_BROKER = "tcp://localhost:1883";
-    private static final String DEFAULT_TOPIC = "producers/ferries/data";
-    private static final String DEFAULT_USERNAME = "admin";
-    private static final String DEFAULT_PASSWORD = "admin";
+    @Option(names = {"--broker"}, description = "MQTT broker URI (e.g. tcp://localhost:1883)", defaultValue = "tcp://localhost:1883")
+    private String broker;
 
-    public static void main(String[] args) throws InterruptedException {
+    @Option(names = {"--username"}, description = "Username for MQTT authentication", defaultValue = "admin")
+    private String username;
 
-        // Read CLI args or use defaults
-        String broker = args.length > 0 ? args[0] : DEFAULT_BROKER;
-        String username = args.length > 1 ? args[1] : DEFAULT_USERNAME;
-        String password = args.length > 2 ? args[2] : DEFAULT_PASSWORD;
-        String topic   = args.length > 3 ? args[3] : DEFAULT_TOPIC;
+    @Option(names = {"--password"}, description = "Password for MQTT authentication", defaultValue = "admin")
+    private String password;
 
-        // Parse broker URL
+    @Option(names = {"--topic"}, description = "Base topic to publish ferry data", defaultValue = "producers/ferries/data")
+    private String topic;
+
+    public static void main(String[] args) {
+        int exitCode = new CommandLine(new Main()).execute(args);
+        System.exit(exitCode);
+    }
+
+    @Override
+    public void run() {
+        // Parse broker
         String hostPort = broker.replace("tcp://", "").replace("ssl://", "");
         String[] split = hostPort.split(":");
         String host = split[0];
@@ -33,7 +44,6 @@ public class Main {
                 : (broker.startsWith("ssl://") ? 8883 : 1883);
         boolean useTls = broker.startsWith("ssl://");
 
-        // Build MQTT client
         var builder = MqttClient.builder()
                 .useMqttVersion3()
                 .serverHost(host)
@@ -45,14 +55,12 @@ public class Main {
 
         Mqtt3AsyncClient client = builder.buildAsync();
 
-        // Graceful shutdown on CTRL+C
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("\nShutdown detected. Disconnecting...");
             client.disconnect()
                     .whenComplete((ack, ex) -> System.out.println("Disconnected. Bye!"));
         }));
 
-        // Connect to broker
         var connectBuilder = client.connectWith();
 
         if (!username.isEmpty()) {
@@ -70,45 +78,37 @@ public class Main {
             System.exit(1);
         }
 
-        // Start publishing loop
-        runSimulation(client, topic);
-    }
-
-    private static void runSimulationTest(Mqtt3AsyncClient client, String topic) throws InterruptedException {
-        int counter = 0;
-        while (true) {
-            String payload = "Message number " + counter++;
-            publishMessage(client, topic, payload);
-
-            TimeUnit.SECONDS.sleep(1);
+        try {
+            runSimulation(client, topic);
+        } catch (InterruptedException e) {
+            System.err.println("Simulation interrupted.");
+            Thread.currentThread().interrupt();
         }
     }
 
-    private static void runSimulation(Mqtt3AsyncClient client, String topic) throws InterruptedException {
-            final int SIMULATION_SECONDS = 24 * 60 * 60;
-            System.out.println("Starting infinite simulation...");
+    private void runSimulation(Mqtt3AsyncClient client, String topic) throws InterruptedException {
+        final int SIMULATION_SECONDS = 24 * 60 * 60;
+        System.out.println("Starting infinite simulation...");
 
-            int simSecond = 12 * 60 * 60;  // We start simulation at noon
-            while (true) {
-                int currentSecond = simSecond % SIMULATION_SECONDS;
+        int simSecond = 12 * 60 * 60;  // start at noon
+        while (true) {
+            int currentSecond = simSecond % SIMULATION_SECONDS;
 
-                for (Ferry ferry : FERRIES) {
-                    CoordinateAndInfo pos = getFerryPosition(ferry, currentSecond);
-                    if (pos != null) {
-                        String fullTopic = topic + "/" + ferry.name;
-                        String message = toCatalogExplorerTrackUpdate(pos);
-                        publishMessage(client, fullTopic, message);
-                    }
+            for (Ferry ferry : FERRIES) {
+                CoordinateAndInfo pos = getFerryPosition(ferry, currentSecond);
+                if (pos != null) {
+                    String fullTopic = topic + "/" + ferry.mmsi;
+                    String message = toCatalogExplorerTrackUpdate(pos);
+                    publishMessage(client, fullTopic, message);
                 }
-
-                //TimeUnit.SECONDS.sleep(1);
-                TimeUnit.MILLISECONDS.sleep(1000);
-                simSecond++;
             }
+
+            TimeUnit.MILLISECONDS.sleep(1000);
+            simSecond++;
+        }
     }
 
-
-    private static void publishMessage(Mqtt3AsyncClient client, String topic, String payload) {
+    private void publishMessage(Mqtt3AsyncClient client, String topic, String payload) {
         client.publishWith()
                 .topic(topic)
                 .payload(payload.getBytes(StandardCharsets.UTF_8))

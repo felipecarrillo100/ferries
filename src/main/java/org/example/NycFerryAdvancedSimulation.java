@@ -17,10 +17,13 @@ public class NycFerryAdvancedSimulation {
 
     static class Ferry {
         String name;
+        String mmsi;    // MMSI number as string (or int if you prefer)
+
         Route route;
         List<Integer> startTimesSec;
-        Ferry(String name, Route route, List<Integer> startTimesSec) {
+        Ferry(String name,  String mmsi, Route route, List<Integer> startTimesSec) {
             this.name = name;
+            this.mmsi = mmsi;
             this.route = route;
             this.startTimesSec = startTimesSec;
         }
@@ -116,14 +119,21 @@ public class NycFerryAdvancedSimulation {
     }
 
     static final List<Ferry> FERRIES = List.of(
-            new Ferry("FerryA", ROUTES.get(0), generateTimesSec(0, 60, 24)),
-            new Ferry("FerryB", ROUTES.get(0), generateTimesSec(30, 60, 24)),
-            new Ferry("FerryC", ROUTES.get(1), generateTimesSec(15, 60, 24)),
-            new Ferry("FerryD", ROUTES.get(1), generateTimesSec(45, 60, 24)),
-            new Ferry("FerryE", ROUTES.get(2), generateTimesSec(0, 60, 24)),
-            new Ferry("FerryF", ROUTES.get(2), generateTimesSec(30, 60, 24)),
-            new Ferry("FerryG", ROUTES.get(3), generateTimesSec(0, 40, 36)),
-            new Ferry("FerryH", ROUTES.get(3), generateTimesSec(20, 40, 36))
+            // Staten Island Ferry (sample vessels)
+            new Ferry("MV Gov. Alfred E. Smith", "367587740", ROUTES.get(0), generateTimesSec(0, 60, 24)),
+            new Ferry("MV John F. Kennedy", "367587580", ROUTES.get(0), generateTimesSec(30, 60, 24)),
+
+            // East River Ferry / NYC Ferry vessels
+            new Ferry("MV Sally", "368710000", ROUTES.get(1), generateTimesSec(15, 60, 24)),
+            new Ferry("MV Mischief", "368710001", ROUTES.get(1), generateTimesSec(45, 60, 24)),
+
+            // Astoria / East 34th / LIC route ferries
+            new Ferry("MV Hallets Point", "368710002", ROUTES.get(2), generateTimesSec(0, 60, 24)),
+            new Ferry("MV Soundview", "368710003", ROUTES.get(2), generateTimesSec(30, 60, 24)),
+
+            // Governors Island / Manhattan South route
+            new Ferry("MV Governor", "367587682", ROUTES.get(3), generateTimesSec(0, 40, 36)),
+            new Ferry("MV American Legion", "367587683", ROUTES.get(3), generateTimesSec(20, 40, 36))
     );
 
     static Coordinate interpolate(Coordinate start, Coordinate end, double t) {
@@ -138,11 +148,11 @@ public class NycFerryAdvancedSimulation {
 
     static class CoordinateAndInfo {
         Coordinate coord;
-        String ferryName, routeName, segment, direction;
+        String ferryName, mmsi, routeName, segment, direction;
         int simSecond;
-        CoordinateAndInfo(Coordinate c, String ferryName, String routeName,
+        CoordinateAndInfo(Coordinate c, String ferryName, String mmsi, String routeName,
                           String segment, String direction, int simSecond) {
-            this.coord = c; this.ferryName = ferryName; this.routeName = routeName;
+            this.coord = c; this.ferryName = ferryName; this.mmsi = mmsi; this.routeName = routeName;
             this.segment = segment; this.direction = direction; this.simSecond = simSecond;
         }
     }
@@ -170,7 +180,7 @@ public class NycFerryAdvancedSimulation {
                     if (elapsed <= acc + segTime) {
                         double t = (elapsed - acc) / (double) segTime;
                         Coordinate coord = interpolate(STOPS.get(stops.get(i)), STOPS.get(stops.get(i + 1)), t);
-                        return new CoordinateAndInfo(coord, ferry.name, ferry.route.name,
+                        return new CoordinateAndInfo(coord, ferry.name, ferry.mmsi, ferry.route.name,
                                 stops.get(i) + "->" + stops.get(i + 1), "forward", simSecond);
                     }
                     acc += segTime;
@@ -183,7 +193,7 @@ public class NycFerryAdvancedSimulation {
                     if (backwardElapsed <= acc + segTime) {
                         double t = (backwardElapsed - acc) / (double) segTime;
                         Coordinate coord = interpolate(STOPS.get(stops.get(i)), STOPS.get(stops.get(i - 1)), t);
-                        return new CoordinateAndInfo(coord, ferry.name, ferry.route.name,
+                        return new CoordinateAndInfo(coord, ferry.name, ferry.mmsi, ferry.route.name,
                                 stops.get(i) + "->" + stops.get(i - 1), "backward", simSecond);
                     }
                     acc += segTime;
@@ -206,6 +216,7 @@ public class NycFerryAdvancedSimulation {
                 "\"id\": \"" + info.ferryName + "\",\n" +
                 "\"properties\": {\n" +
                 "  \"ferry_name\": \"" + info.ferryName + "\",\n" +
+                "  \"mmsi\": \"" + info.mmsi + "\",\n" +
                 "  \"route\": \"" + info.routeName + "\",\n" +
                 "  \"segment\": \"" + info.segment + "\",\n" +
                 "  \"direction\": \"" + info.direction + "\",\n" +

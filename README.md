@@ -7,7 +7,7 @@ This Java application simulates real-world NYC ferry routes and publishes live f
 ## 📦 Project Structure
 
 - `NycFerryAdvancedSimulation.java` — Contains route definitions, ferry schedules, travel logic, and message formatting.
-- `Main.java` — Connects to an MQTT broker and continuously publishes ferry positions based on simulation time.
+- `Main.java` — Connects to an MQTT broker and continuously publishes ferry positions based on simulation time. Now includes a robust command-line interface using [Picocli](https://picocli.info/).
 
 ---
 
@@ -18,6 +18,7 @@ This Java application simulates real-world NYC ferry routes and publishes live f
 - 🕒 24-hour round-trip scheduling
 - 📡 MQTT publishing in GeoJSON-style format
 - 🔄 Continuous live simulation with per-second updates
+- 🧾 Flexible CLI with `--broker`, `--username`, `--topic`, etc.
 
 ---
 
@@ -31,13 +32,21 @@ This Java application simulates real-world NYC ferry routes and publishes live f
 
 ## 📦 Maven Setup
 
-This project uses Maven. The dependency to use MQTT is:
+This project uses Maven. Required dependencies:
 
 ```xml
+<!-- MQTT client -->
 <dependency>
   <groupId>com.hivemq</groupId>
   <artifactId>hivemq-mqtt-client</artifactId>
   <version>1.3.7</version>
+</dependency>
+
+<!-- Picocli CLI parser -->
+<dependency>
+  <groupId>info.picocli</groupId>
+  <artifactId>picocli</artifactId>
+  <version>4.7.5</version>
 </dependency>
 ```
 
@@ -51,38 +60,67 @@ This project uses Maven. The dependency to use MQTT is:
 mvn clean compile
 ```
 
-### Run the simulation
+### Run the simulation with defaults
 
 ```bash
 mvn exec:java
 ```
 
-Or with custom arguments:
+### Run the simulation with custom options
 
 ```bash
-mvn exec:java -Dexec.args="tcp://localhost:1883 admin admin producers/ferries/data"
+mvn exec:java -Dexec.args="--broker tcp://localhost:1883 --username myuser --password mypass --topic ferries/data"
 ```
 
-**Arguments:**
-1. MQTT broker URL (default: `tcp://localhost:1883`)
-2. MQTT username (default: `admin`)
-3. MQTT password (default: `admin`)
-4. Base topic (default: `producers/ferries/data`)
+---
+
+## 🛠️ Available CLI Options
+
+| Option (Short / Long)     | Description                             | Default                     |
+|---------------------------|-----------------------------------------|-----------------------------|
+| `-b`, `--broker`          | MQTT broker URI                         | `tcp://localhost:1883`      |
+| `-u`, `--username`        | MQTT username                           | `admin`                     |
+| `-p`, `--password`        | MQTT password                           | `admin`                     |
+| `-t`, `--topic`           | Base topic to publish ferry data        | `producers/ferries/data`    |
+| `-h`, `--help`            | Show usage help                         |                             |
+| `-V`, `--version`         | Show version info                       |                             |
+
+---
+
+## 📋 Example CLI Help Output
+
+```bash
+$ java -jar ferry-sim.jar --help
+
+Usage: NycFerryPublisher [OPTIONS]
+Publishes simulated NYC ferry AIS data to an MQTT broker.
+
+Options:
+  -b, --broker     MQTT broker URI (e.g. tcp://localhost:1883)
+                   Default: tcp://localhost:1883
+  -u, --username   Username for MQTT authentication
+                   Default: admin
+  -p, --password   Password for MQTT authentication
+                   Default: admin
+  -t, --topic      Base topic to publish ferry data
+                   Default: producers/ferries/data
+  -h, --help       Show this help message and exit.
+  -V, --version    Print version information and exit.
+```
 
 ---
 
 ## ⚠️ Catalog Explorer MQTT/STOMP Compatibility
 
-Catalog Explorer uses **STOMP** protocol and does **not** understand MQTT natively.  
-Instead, it relies on the message broker to translate between MQTT and STOMP protocols.
+Catalog Explorer uses **STOMP**, not MQTT directly. To bridge the two protocols, use a broker like **ActiveMQ** that supports both MQTT and STOMP.
 
-If you use **ActiveMQ**, you can enable both MQTT and STOMP connectors. ActiveMQ will automatically and transparently map MQTT topics to STOMP destinations.
-
-#### Example Mapping:
-- MQTT topic: `producers/ferries/data` to
+#### Example Topic Mapping:
+- MQTT topic: `producers/ferries/data`
 - STOMP topic: `/topic/producers.ferries.data`
 
-This bridging lets MQTT publishers and STOMP consumers (like Catalog Explorer) work together seamlessly.
+This allows MQTT producers and STOMP consumers to communicate transparently.
+
+---
 
 ## 🛰️ MQTT Message Example
 
@@ -107,16 +145,7 @@ Each ferry sends a message in the Catalog Explorer Live Tracks format:
 }
 ```
 
-This is compliant with `Catalog Explorer` Live Tracks messaging that expects:
-
-```json
-{
-  "action": "...",           // ADD, PUT, DELETE, PATCH
-  "geometry": {...},         // GeoJSON Point
-  "id": "...",               // Unique vehicle ID
-  "properties": {...}        // Any app-specific metadata
-}
-```
+This is compliant with `Catalog Explorer` Live Tracks expectations.
 
 ---
 
@@ -138,4 +167,5 @@ MIT License
 ## 🙌 Acknowledgments
 
 - Built using the [HiveMQ MQTT Client](https://github.com/hivemq/hivemq-mqtt-client)
+- Command-line interface powered by [Picocli](https://picocli.info/)
 - Loosely based on real-world NYC ferry routes and pier coordinates
