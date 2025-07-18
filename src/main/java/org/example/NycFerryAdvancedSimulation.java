@@ -111,27 +111,27 @@ public class NycFerryAdvancedSimulation {
         return times;
     }
 
-    static String aisName(String name) {
+    static String aisNameOrDestination(String name) {
         String aisName = name.trim().toUpperCase();
         return aisName.length() > 20 ? aisName.substring(0, 20) : aisName;
     }
 
     static final List<Ferry> FERRIES = List.of(
-            new Ferry(aisName("MV Gov. Alfred E. Smith"), "367587740", "WDI6910",
+            new Ferry(aisNameOrDestination("MV Gov. Alfred E. Smith"), "367587740", "WDI6910",
                     4.2, 12, 8, 7, 7, ROUTES.get(0), generateTimesSec(0, 60, 24)),
-            new Ferry(aisName("MV John F. Kennedy"), "367587580", "WDI6901",
+            new Ferry(aisNameOrDestination("MV John F. Kennedy"), "367587580", "WDI6901",
                     3.8, 10, 9, 6, 6, ROUTES.get(0), generateTimesSec(30, 60, 24)),
-            new Ferry(aisName("MV Sally"), "368710000", "WDI6920",
+            new Ferry(aisNameOrDestination("MV Sally"), "368710000", "WDI6920",
                     4.0, 11, 8, 7, 7, ROUTES.get(1), generateTimesSec(15, 60, 24)),
-            new Ferry(aisName("MV Mischief"), "368710001", "WDI6921",
+            new Ferry(aisNameOrDestination("MV Mischief"), "368710001", "WDI6921",
                     3.9, 10, 9, 6, 6, ROUTES.get(1), generateTimesSec(45, 60, 24)),
-            new Ferry(aisName("MV Hallets Point"), "368710002", "WDI6922",
+            new Ferry(aisNameOrDestination("MV Hallets Point"), "368710002", "WDI6922",
                     4.1, 12, 8, 7, 7, ROUTES.get(2), generateTimesSec(0, 60, 24)),
-            new Ferry(aisName("MV Soundview"), "368710003", "WDI6923",
+            new Ferry(aisNameOrDestination("MV Soundview"), "368710003", "WDI6923",
                     3.8, 10, 9, 6, 6, ROUTES.get(2), generateTimesSec(30, 60, 24)),
-            new Ferry(aisName("MV Governor"), "367587682", "WDI6909",
+            new Ferry(aisNameOrDestination("MV Governor"), "367587682", "WDI6909",
                     4.2, 11, 9, 7, 7, ROUTES.get(3), generateTimesSec(0, 40, 36)),
-            new Ferry(aisName("MV American Legion"), "367587683", "WDI6911",
+            new Ferry(aisNameOrDestination("MV American Legion"), "367587683", "WDI6911",
                     3.9, 10, 8, 6, 6, ROUTES.get(3), generateTimesSec(20, 40, 36))
     );
 
@@ -289,16 +289,7 @@ public class NycFerryAdvancedSimulation {
     public static String toCatalogExplorerTrackUpdate(CoordinateAndInfo info) {
         int etaSec = calculateEtaSeconds(info);
 
-        String destination;
-        List<String> stops = info.ferry.route.stops;
-
-        if ("forward".equals(info.direction)) {
-            destination = stops.get(stops.size() - 1);
-        } else if ("backward".equals(info.direction)) {
-            destination = stops.get(0);
-        } else {
-            destination = "";
-        }
+        String destination = getDestinationName(info);
 
         return String.format(Locale.US,
                 "{" +
@@ -340,6 +331,20 @@ public class NycFerryAdvancedSimulation {
                 info.ferry.dimensionToStern,
                 info.ferry.dimensionToPort,
                 info.ferry.dimensionToStarboard);
+    }
+
+    public static String getDestinationName(CoordinateAndInfo info) {
+        String destination;
+        List<String> stops = info.ferry.route.stops;
+
+        if ("forward".equals(info.direction)) {
+            destination = stops.get(stops.size() - 1);
+        } else if ("backward".equals(info.direction)) {
+            destination = stops.get(0);
+        } else {
+            destination = "";
+        }
+        return aisNameOrDestination(destination);
     }
 
 }

@@ -183,6 +183,9 @@ public class Main implements Runnable {
                                 staticMsg.setEtaMinute(etaDateTime.getMinute());
                             }
 
+                            String destination = getDestinationName(pos);
+                            staticMsg.setDestination(destination);
+
                             List<String> staticSentences = AisEncoder.encodeStaticMessage(staticMsg);
                             for (String sentence : staticSentences) {
                                 publishMessage(client, fullTopic, sentence);
