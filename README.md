@@ -37,19 +37,19 @@ This project uses Maven. Required dependencies:
 ```xml
 <!-- MQTT client -->
 <dependency>
-  <groupId>com.hivemq</groupId>
-  <artifactId>hivemq-mqtt-client</artifactId>
-  <version>1.3.7</version>
+    <groupId>com.hivemq</groupId>
+    <artifactId>hivemq-mqtt-client</artifactId>
+    <version>1.3.7</version>
 </dependency>
 
-<!-- Picocli CLI parser -->
+        <!-- Picocli CLI parser -->
 <dependency>
-  <groupId>info.picocli</groupId>
-  <artifactId>picocli</artifactId>
-  <version>4.7.5</version>
+<groupId>info.picocli</groupId>
+<artifactId>picocli</artifactId>
+<version>4.7.5</version>
 </dependency>
 
-<!-- Your AIS library from GitHub via JitPack -->
+        <!-- Your AIS library from GitHub via JitPack -->
 <dependency>
 <groupId>io.github.felipecarrillo100</groupId>
 <artifactId>ais-nmea-encoder-decoder</artifactId>
@@ -70,13 +70,33 @@ mvn clean compile
 ### Run the simulation with defaults
 
 ```bash
-mvn exec:java
+mvn exec:java 
 ```
 
 ### Run the simulation with custom options
 
 ```bash
 mvn exec:java -Dexec.args="--broker tcp://localhost:1883 --username myuser --password mypass --topic ferries/data"
+```
+
+## ▶️ How to Build
+
+### Build the project
+
+```bash
+mvn clean package
+```
+This will create a jar file
+### Run the jar file with defaults
+
+```bash
+java -jar Ferries-1.0.0.jar 
+```
+
+### Run the jar file with custom options
+
+```bash
+java -jar Ferries-1.0.0.jar --broker tcp://localhost:1883 
 ```
 
 ---
