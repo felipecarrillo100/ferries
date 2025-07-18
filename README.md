@@ -76,14 +76,15 @@ mvn exec:java -Dexec.args="--broker tcp://localhost:1883 --username myuser --pas
 
 ## 🛠️ Available CLI Options
 
-| Option (Short / Long)     | Description                             | Default                     |
-|---------------------------|-----------------------------------------|-----------------------------|
-| `-b`, `--broker`          | MQTT broker URI                         | `tcp://localhost:1883`      |
-| `-u`, `--username`        | MQTT username                           | `admin`                     |
-| `-p`, `--password`        | MQTT password                           | `admin`                     |
-| `-t`, `--topic`           | Base topic to publish ferry data        | `producers/ferries/data`    |
-| `-h`, `--help`            | Show usage help                         |                             |
-| `-V`, `--version`         | Show version info                       |                             |
+| Option (Short / Long) | Description                               | Default                  |
+|-----------------------|-------------------------------------------|--------------------------|
+| `-b`, `--broker`      | MQTT broker URI                           | `tcp://localhost:1883`   |
+| `-u`, `--username`    | MQTT username                             | `admin`                  |
+| `-p`, `--password`    | MQTT password                             | `admin`                  |
+| `-t`, `--topic`       | Base topic to publish ferry data          | `producers/ferries/data` |
+| `-h`, `--help`        | Show usage help                           |                          |
+| `-V`, `--version`     | Show version info                         |                          |
+| `-f`, `--format`      | The format to send the tracks catex or ais|catex                             |
 
 ---
 
