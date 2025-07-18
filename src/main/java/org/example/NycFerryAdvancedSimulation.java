@@ -118,22 +118,30 @@ public class NycFerryAdvancedSimulation {
         return times;
     }
 
+    static String aisName(String name) {
+        String aisName = name.trim().toUpperCase();
+        if (aisName.length() > 20) {
+            aisName = aisName.substring(0, 20);
+        }
+        return aisName;
+    }
+
     static final List<Ferry> FERRIES = List.of(
             // Staten Island Ferry (sample vessels)
-            new Ferry("MV Gov. Alfred E. Smith", "367587740", ROUTES.get(0), generateTimesSec(0, 60, 24)),
-            new Ferry("MV John F. Kennedy", "367587580", ROUTES.get(0), generateTimesSec(30, 60, 24)),
+            new Ferry(aisName("MV Gov. Alfred E. Smith"), "367587740", ROUTES.get(0), generateTimesSec(0, 60, 24)),
+            new Ferry(aisName("MV John F. Kennedy"), "367587580", ROUTES.get(0), generateTimesSec(30, 60, 24)),
 
             // East River Ferry / NYC Ferry vessels
-            new Ferry("MV Sally", "368710000", ROUTES.get(1), generateTimesSec(15, 60, 24)),
-            new Ferry("MV Mischief", "368710001", ROUTES.get(1), generateTimesSec(45, 60, 24)),
+            new Ferry(aisName("MV Sally"), "368710000", ROUTES.get(1), generateTimesSec(15, 60, 24)),
+            new Ferry(aisName("MV Mischief"), "368710001", ROUTES.get(1), generateTimesSec(45, 60, 24)),
 
             // Astoria / East 34th / LIC route ferries
-            new Ferry("MV Hallets Point", "368710002", ROUTES.get(2), generateTimesSec(0, 60, 24)),
-            new Ferry("MV Soundview", "368710003", ROUTES.get(2), generateTimesSec(30, 60, 24)),
+            new Ferry(aisName("MV Hallets Point"), "368710002", ROUTES.get(2), generateTimesSec(0, 60, 24)),
+            new Ferry(aisName("MV Soundview"), "368710003", ROUTES.get(2), generateTimesSec(30, 60, 24)),
 
             // Governors Island / Manhattan South route
-            new Ferry("MV Governor", "367587682", ROUTES.get(3), generateTimesSec(0, 40, 36)),
-            new Ferry("MV American Legion", "367587683", ROUTES.get(3), generateTimesSec(20, 40, 36))
+            new Ferry(aisName("MV Governor"), "367587682", ROUTES.get(3), generateTimesSec(0, 40, 36)),
+            new Ferry(aisName("MV American Legion"), "367587683", ROUTES.get(3), generateTimesSec(20, 40, 36))
     );
 
     static Coordinate interpolate(Coordinate start, Coordinate end, double t) {
@@ -150,11 +158,53 @@ public class NycFerryAdvancedSimulation {
         Coordinate coord;
         String ferryName, mmsi, routeName, segment, direction;
         int simSecond;
+        double heading; // degrees 0-360
+        double speed;   // meters per second
+
         CoordinateAndInfo(Coordinate c, String ferryName, String mmsi, String routeName,
-                          String segment, String direction, int simSecond) {
-            this.coord = c; this.ferryName = ferryName; this.mmsi = mmsi; this.routeName = routeName;
-            this.segment = segment; this.direction = direction; this.simSecond = simSecond;
+                          String segment, String direction, int simSecond, double heading, double speed) {
+            this.coord = c;
+            this.ferryName = ferryName;
+            this.mmsi = mmsi;
+            this.routeName = routeName;
+            this.segment = segment;
+            this.direction = direction;
+            this.simSecond = simSecond;
+            this.heading = heading;
+            this.speed = speed;
         }
+    }
+
+    // Earth radius in meters
+    private static final double EARTH_RADIUS_M = 6371000;
+
+    // Calculate heading in degrees from point1 to point2 (0 = North, clockwise)
+    static double calculateHeading(Coordinate from, Coordinate to) {
+        double lat1Rad = Math.toRadians(from.lat);
+        double lat2Rad = Math.toRadians(to.lat);
+        double deltaLonRad = Math.toRadians(to.lon - from.lon);
+
+        double y = Math.sin(deltaLonRad) * Math.cos(lat2Rad);
+        double x = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+                Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(deltaLonRad);
+
+        double headingRad = Math.atan2(y, x);
+        double headingDeg = Math.toDegrees(headingRad);
+        return (headingDeg + 360) % 360;
+    }
+
+    // Calculate distance between two lat/lon points using haversine formula (meters)
+    static double calculateDistanceMeters(Coordinate from, Coordinate to) {
+        double lat1Rad = Math.toRadians(from.lat);
+        double lat2Rad = Math.toRadians(to.lat);
+        double deltaLatRad = lat2Rad - lat1Rad;
+        double deltaLonRad = Math.toRadians(to.lon - from.lon);
+
+        double a = Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
+                Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+                        Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return EARTH_RADIUS_M * c;
     }
 
     public static CoordinateAndInfo getFerryPosition(Ferry ferry, int simSecond) {
@@ -180,8 +230,16 @@ public class NycFerryAdvancedSimulation {
                     if (elapsed <= acc + segTime) {
                         double t = (elapsed - acc) / (double) segTime;
                         Coordinate coord = interpolate(STOPS.get(stops.get(i)), STOPS.get(stops.get(i + 1)), t);
+
+                        Coordinate fromCoord = STOPS.get(stops.get(i));
+                        Coordinate toCoord = STOPS.get(stops.get(i + 1));
+
+                        double heading = calculateHeading(fromCoord, toCoord);
+                        double distanceMeters = calculateDistanceMeters(fromCoord, toCoord);
+                        double speed = distanceMeters / segTime; // meters per second
+
                         return new CoordinateAndInfo(coord, ferry.name, ferry.mmsi, ferry.route.name,
-                                stops.get(i) + "->" + stops.get(i + 1), "forward", simSecond);
+                                stops.get(i) + "->" + stops.get(i + 1), "forward", simSecond, heading, speed);
                     }
                     acc += segTime;
                 }
@@ -193,8 +251,16 @@ public class NycFerryAdvancedSimulation {
                     if (backwardElapsed <= acc + segTime) {
                         double t = (backwardElapsed - acc) / (double) segTime;
                         Coordinate coord = interpolate(STOPS.get(stops.get(i)), STOPS.get(stops.get(i - 1)), t);
+
+                        Coordinate fromCoord = STOPS.get(stops.get(i));
+                        Coordinate toCoord = STOPS.get(stops.get(i - 1));
+
+                        double heading = calculateHeading(fromCoord, toCoord);
+                        double distanceMeters = calculateDistanceMeters(fromCoord, toCoord);
+                        double speed = distanceMeters / segTime; // meters per second
+
                         return new CoordinateAndInfo(coord, ferry.name, ferry.mmsi, ferry.route.name,
-                                stops.get(i) + "->" + stops.get(i - 1), "backward", simSecond);
+                                stops.get(i) + "->" + stops.get(i - 1), "backward", simSecond, heading, speed);
                     }
                     acc += segTime;
                 }
@@ -221,7 +287,9 @@ public class NycFerryAdvancedSimulation {
                 "  \"segment\": \"" + info.segment + "\",\n" +
                 "  \"direction\": \"" + info.direction + "\",\n" +
                 "  \"timestamp_second\": " + info.simSecond + ",\n" +
-                "  \"time\": \"" + String.format("%02d:%02d:%02d", h, m, s) + "\"\n" +
+                "  \"time\": \"" + String.format("%02d:%02d:%02d", h, m, s) + "\",\n" +
+                "  \"heading\": " + String.format("%.2f", info.heading) + ",\n" +
+                "  \"speed_mps\": " + String.format("%.2f", info.speed) + "\n" +
                 "}\n" +
                 "}";
     }

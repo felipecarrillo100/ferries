@@ -125,7 +125,7 @@ public class Main implements Runnable {
             for (Ferry ferry : FERRIES) {
                 CoordinateAndInfo pos = getFerryPosition(ferry, currentSecond);
                 if (pos != null) {
-                    String fullTopic = topic + "/" + ferry.name;
+                    String fullTopic = topic + "/" + ferry.mmsi;
 
                     if ("ais".equalsIgnoreCase(format)) {
                         // Send position AIS messages
@@ -134,8 +134,15 @@ public class Main implements Runnable {
                         position.setLat(pos.coord.lat);
                         position.setLon(pos.coord.lon);
                         position.setTimestamp(currentSecond % 60);
-                        position.setSog(0.0);
-                        position.setCog(0.0);
+
+                        // Set speed over ground (SOG) in knots: convert m/s to knots (1 m/s ≈ 1.94384 knots)
+                        double sogKnots = pos.speed * 1.94384;
+                        position.setSog(sogKnots);
+
+                        // Set course over ground (COG) in degrees (0-360)
+                        position.setCog(pos.heading);     // course over ground
+                        position.setHeading((int)Math.round(pos.heading));  // round float heading to int degrees
+
                         position.setNavStatus(0);
 
                         List<String> positionSentences = AisEncoder.encodePositionMessage(position);
