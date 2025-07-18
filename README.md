@@ -26,7 +26,7 @@ This Java application simulates real-world NYC ferry routes and publishes live f
 
 - Java 17+
 - Maven 3.6+
-- MQTT Broker (e.g. Mosquitto, HiveMQ)
+- ActiveMQ
 
 ---
 
@@ -47,6 +47,13 @@ This project uses Maven. Required dependencies:
   <groupId>info.picocli</groupId>
   <artifactId>picocli</artifactId>
   <version>4.7.5</version>
+</dependency>
+
+<!-- Your AIS library from GitHub via JitPack -->
+<dependency>
+<groupId>io.github.felipecarrillo100</groupId>
+<artifactId>ais-nmea-encoder-decoder</artifactId>
+<version>1.0.2</version>
 </dependency>
 ```
 
@@ -129,16 +136,28 @@ Each ferry sends a message in the Catalog Explorer Live Tracks format:
   "action": "PUT",
   "geometry": {
     "type": "Point",
-    "coordinates": [-74.010, 40.685]
+    "coordinates": [
+      -74.028961,
+      40.650410
+    ]
   },
-  "id": "FerryC",
+  "id": "368710001",
   "properties": {
-    "ferry_name": "FerryC",
+    "mmsi": "368710001",
+    "ferry_name": "MV MISCHIEF",
     "route": "Wall Street - Brooklyn Army Terminal",
-    "segment": "Waypoint_BK_3->Waypoint_BK_1",
+    "segment": "Waypoint_BK_5->Brooklyn Army Terminal",
     "direction": "forward",
-    "timestamp_second": 43200,
-    "time": "12:00:00"
+    "destination": "BROOKLYN ARMY TERMIN",
+    "timestamp_second": 43201,
+    "heading": 153.0,
+    "speed_mps": 4.12,
+    "eta_next_stop_sec": 120,
+    "draught": 3.9,
+    "dimensionToBow": 10,
+    "dimensionToStern": 9,
+    "dimensionToPort": 6,
+    "dimensionToStarboard": 6
   }
 }
 ```
@@ -151,10 +170,11 @@ This is compliant with `Catalog Explorer` Live Tracks default format.
 
 Optionally, this sample  can also send NMEA AIS messages (Options `-f ais`):
 
-```json
-!AIVDM,1,1,7,A,15NSiW0P14Jds@hG@Jfhd@T00000,0*25
-!AIVDM,1,1,1,A,15NShw0P27Je;2PGAlL8Nnj00000,0*66
-!AIVDM,1,1,6,A,15O`AL@P1@Je7lTG@bNUvDj00000,0*61
+```CSV
+!AIVDM,1,1,7,A,15O`AL@P1@Je7lvG@bIUvDj20000,0*47
+!AIVDM,1,1,9,A,15O`ALPP18JeS8dGE6cHlo420000,0*0A
+!AIVDM,1,1,7,A,15NSiHPP0fJe;onGAw0@vPj20000,0*15
+!AIVDM,1,1,9,A,15O`ALhP1TJeLEHGDDciBA220000,0*44
 ```
 Position updates are send every second, while static data (such as vessel name) are send every minute
 
