@@ -84,29 +84,26 @@ mvn exec:java -Dexec.args="--broker tcp://localhost:1883 --username myuser --pas
 | `-t`, `--topic`       | Base topic to publish ferry data          | `producers/ferries/data` |
 | `-h`, `--help`        | Show usage help                           |                          |
 | `-V`, `--version`     | Show version info                         |                          |
-| `-f`, `--format`      | The format to send the tracks catex or ais|catex                             |
+| `-f`, `--format`      | Output format: `catex` or `ais` |`catex`                             |
 
 ---
 
 ## 📋 Example CLI Help Output
 
 ```bash
-$ java -jar ferry-sim.jar --help
-
-Usage: NycFerryPublisher [OPTIONS]
-Publishes simulated NYC ferry AIS data to an MQTT broker.
-
-Options:
-  -b, --broker     MQTT broker URI (e.g. tcp://localhost:1883)
-                   Default: tcp://localhost:1883
-  -u, --username   Username for MQTT authentication
-                   Default: admin
-  -p, --password   Password for MQTT authentication
-                   Default: admin
-  -t, --topic      Base topic to publish ferry data
-                   Default: producers/ferries/data
-  -h, --help       Show this help message and exit.
-  -V, --version    Print version information and exit.
+$ java -jar ferry-sim.jar  --help
+Usage: NycFerryPublisher [-hV] [-b=<broker>] [-f=<format>] [-p=<password>]
+                         [-t=<topic>] [-u=<username>]
+Publishes simulated NYC ferry AIS or Catalog Explorer data to an MQTT broker.
+  -b, --broker=<broker>   MQTT broker URI (e.g. tcp://localhost:1883)
+  -f, --format=<format>   Message format: catex (default) or ais
+  -h, --help              Show this help message and exit.
+  -p, --password=<password>
+                          Password for MQTT authentication
+  -t, --topic=<topic>     Base topic to publish ferry data
+  -u, --username=<username>
+                          Username for MQTT authentication
+  -V, --version           Print version information and exit.
 ```
 
 ---
@@ -146,9 +143,20 @@ Each ferry sends a message in the Catalog Explorer Live Tracks format:
 }
 ```
 
-This is compliant with `Catalog Explorer` Live Tracks expectations.
+This is compliant with `Catalog Explorer` Live Tracks default format.
 
 ---
+
+## 🛰️ AIS Message Example
+
+Optionally, this sample  can also send NMEA AIS messages (Options `-f ais`):
+
+```json
+!AIVDM,1,1,7,A,15NSiW0P14Jds@hG@Jfhd@T00000,0*25
+!AIVDM,1,1,1,A,15NShw0P27Je;2PGAlL8Nnj00000,0*66
+!AIVDM,1,1,6,A,15O`AL@P1@Je7lTG@bNUvDj00000,0*61
+```
+Position updates are send every second, while static data (such as vessel name) are send every minute
 
 ## 🗺️ Included Routes
 
