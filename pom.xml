@@ -23,7 +23,7 @@
         <dependency>
             <groupId>io.github.felipecarrillo100</groupId>
             <artifactId>ais-nmea-encoder-decoder</artifactId>
-            <version>1.0.0</version>
+            <version>1.0.2</version>
         </dependency>
     </dependencies>
 

@@ -8,26 +8,40 @@ import picocli.CommandLine;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Command;
 
+import io.github.felipecarrillo100.ais.AisPositionMessage;
+import io.github.felipecarrillo100.ais.AisStaticMessage;
+import io.github.felipecarrillo100.ais.AisEncoder;
+
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import static org.example.NycFerryAdvancedSimulation.*;
 
 @Command(name = "NycFerryPublisher", mixinStandardHelpOptions = true, version = "1.0",
-        description = "Publishes simulated NYC ferry AIS data to an MQTT broker.")
+        description = "Publishes simulated NYC ferry AIS or Catalog Explorer data to an MQTT broker.")
 public class Main implements Runnable {
 
-    @Option(names = {"--broker"}, description = "MQTT broker URI (e.g. tcp://localhost:1883)", defaultValue = "tcp://localhost:1883")
+    @Option(names = {"--broker", "-b"}, description = "MQTT broker URI (e.g. tcp://localhost:1883)", defaultValue = "tcp://localhost:1883")
     private String broker;
 
-    @Option(names = {"--username"}, description = "Username for MQTT authentication", defaultValue = "admin")
+    @Option(names = {"--username", "-u"}, description = "Username for MQTT authentication", defaultValue = "admin")
     private String username;
 
-    @Option(names = {"--password"}, description = "Password for MQTT authentication", defaultValue = "admin")
+    @Option(names = {"--password", "-p"}, description = "Password for MQTT authentication", defaultValue = "admin")
     private String password;
 
-    @Option(names = {"--topic"}, description = "Base topic to publish ferry data", defaultValue = "producers/ferries/data")
+    @Option(names = {"--topic", "-t"}, description = "Base topic to publish ferry data", defaultValue = "producers/ferries/data")
     private String topic;
+
+    @Option(names = {"--format", "-f"}, description = "Message format: catex (default) or ais", defaultValue = "catex")
+    private String format;
+
+    private static final int STATIC_MSG_BASE_INTERVAL = 60;
+    private static final int STATIC_MSG_RANDOM_OFFSET = 10;
 
     public static void main(String[] args) {
         int exitCode = new CommandLine(new Main()).execute(args);
@@ -78,28 +92,88 @@ public class Main implements Runnable {
             System.exit(1);
         }
 
+        // State for static message sending per ferry: count of positions sent since last static message
+        Map<String, Integer> positionCountSinceStatic = new HashMap<>();
+        // Static message threshold per ferry (60 ± random 0-10)
+        Map<String, Integer> staticThresholds = new HashMap<>();
+
+        // Initialize maps for each ferry
+        for (Ferry ferry : FERRIES) {
+            positionCountSinceStatic.put(ferry.mmsi, 0);
+            staticThresholds.put(ferry.mmsi, STATIC_MSG_BASE_INTERVAL + ThreadLocalRandom.current().nextInt(-STATIC_MSG_RANDOM_OFFSET, STATIC_MSG_RANDOM_OFFSET + 1));
+        }
+
         try {
-            runSimulation(client, topic);
+            runSimulation(client, topic, positionCountSinceStatic, staticThresholds);
         } catch (InterruptedException e) {
             System.err.println("Simulation interrupted.");
             Thread.currentThread().interrupt();
         }
     }
 
-    private void runSimulation(Mqtt3AsyncClient client, String topic) throws InterruptedException {
+    private void runSimulation(Mqtt3AsyncClient client, String topic,
+                               Map<String, Integer> positionCountSinceStatic,
+                               Map<String, Integer> staticThresholds) throws InterruptedException {
         final int SIMULATION_SECONDS = 24 * 60 * 60;
-        System.out.println("Starting infinite simulation...");
+        System.out.println("Starting infinite simulation with format: " + format);
 
         int simSecond = 12 * 60 * 60;  // start at noon
+
         while (true) {
             int currentSecond = simSecond % SIMULATION_SECONDS;
 
             for (Ferry ferry : FERRIES) {
                 CoordinateAndInfo pos = getFerryPosition(ferry, currentSecond);
                 if (pos != null) {
-                    String fullTopic = topic + "/" + ferry.mmsi;
-                    String message = toCatalogExplorerTrackUpdate(pos);
-                    publishMessage(client, fullTopic, message);
+                    String fullTopic = topic + "/" + ferry.name;
+
+                    if ("ais".equalsIgnoreCase(format)) {
+                        // Send position AIS messages
+                        AisPositionMessage position = new AisPositionMessage();
+                        position.setMmsi(Integer.parseInt(pos.mmsi));
+                        position.setLat(pos.coord.lat);
+                        position.setLon(pos.coord.lon);
+                        position.setTimestamp(currentSecond % 60);
+                        position.setSog(0.0);
+                        position.setCog(0.0);
+                        position.setNavStatus(0);
+
+                        List<String> positionSentences = AisEncoder.encodePositionMessage(position);
+                        for (String sentence : positionSentences) {
+                            publishMessage(client, fullTopic, sentence);
+                        }
+
+                        // Update counter for static messages
+                        int count = positionCountSinceStatic.get(ferry.mmsi) + 1;
+                        positionCountSinceStatic.put(ferry.mmsi, count);
+
+                        int threshold = staticThresholds.get(ferry.mmsi);
+                        if (count >= threshold) {
+                            // Send static AIS messages
+                            AisStaticMessage staticMsg = new AisStaticMessage();
+                            staticMsg.setMmsi(Integer.parseInt(ferry.mmsi));
+                            staticMsg.setName(ferry.name);
+                            staticMsg.setCallsign("");
+                            staticMsg.setShipType(70);
+                            staticMsg.setDimensionToBow(0);
+                            staticMsg.setDimensionToStern(0);
+                            staticMsg.setDimensionToPort(0);
+                            staticMsg.setDimensionToStarboard(0);
+
+                            List<String> staticSentences = AisEncoder.encodeStaticMessage(staticMsg);
+                            for (String sentence : staticSentences) {
+                                publishMessage(client, fullTopic, sentence);
+                            }
+
+                            // Reset counter and set new randomized threshold
+                            positionCountSinceStatic.put(ferry.mmsi, 0);
+                            staticThresholds.put(ferry.mmsi, STATIC_MSG_BASE_INTERVAL + ThreadLocalRandom.current().nextInt(-STATIC_MSG_RANDOM_OFFSET, STATIC_MSG_RANDOM_OFFSET + 1));
+                        }
+                    } else {
+                        // Default to catex format
+                        String message = toCatalogExplorerTrackUpdate(pos);
+                        publishMessage(client, fullTopic, message);
+                    }
                 }
             }
 
